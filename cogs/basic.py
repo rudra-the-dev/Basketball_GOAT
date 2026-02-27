@@ -8,3 +8,9 @@ class Basic(commands.Cog):
     @commands.command()
     async def ping(self, ctx):
         await ctx.send("Pong!")
+
+async def setup(bot):
+    await bot.add_cog(Basic(bot))
+
+async def setup(bot):
+    await bot.add_cog(Basic(bot))
