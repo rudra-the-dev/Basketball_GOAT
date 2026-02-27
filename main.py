@@ -15,8 +15,11 @@ bot=commands.Bot(command_prefix=config.PREFIX,intents=intents)
 
 #database
 
-client = motor.motor_asyncio.AsyncIOMotorClient(config.MONGO_URI)
-bot.db = client[config.DB_NAME]
+client = motor.motor_asyncio.AsyncIOMotorClient(
+    config.MONGO_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
 
 @bot.event
 async def on_ready():
