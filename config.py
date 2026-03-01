@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+#players data
+
+BALL_API_KEY = os.getenv("BALL_API_KEY")
 
 #bot
 

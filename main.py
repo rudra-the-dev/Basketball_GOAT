@@ -15,28 +15,13 @@ bot=commands.Bot(command_prefix=config.PREFIX,intents=intents)
 
 #database
 
-client = motor.motor_asyncio.AsyncIOMotorClient(
-    config.MONGO_URI,
-    tls=True,
-    tlsAllowInvalidCertificates=True
-)
+
 
 @bot.event
 async def on_ready():
   print(f"Logged in as {bot.user} (ID: {bot.user.id})")
   
 
-@bot.command()
-async def hello(ctx):
-  await ctx.send(f"Hey{ctx.author.mention}")
-
-@bot.command()
-async def goodbye(ctx):
-  await ctx.send(f"Goodbye{ctx.author.mention}")
-
-@bot.command()
-async def myhelp(ctx):
-  await ctx.send("My commands are: ping,hello,goodbye,help")
 
 
 
@@ -48,6 +33,15 @@ async def load_cogs():
 
 
 async def main():
+    global client
+    
+    client = motor.motor_asyncio.AsyncIOMotorClient(
+    config.MONGO_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
+
+    bot.db = client[config.DB_NAME]
     try:
         await client.admin.command('ping')
         print("✅ Connected to MongoDB successfully!")
