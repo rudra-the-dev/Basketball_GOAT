@@ -476,17 +476,17 @@ class MatchEngine:
         )
 
         db_record = {
-    "player_a_id": str(self.player_a.id),
-    "player_a_name": self.player_a.display_name,
-    "player_b_id": str(self.player_b.id),
-    "player_b_name": self.player_b.display_name,
-    "score_a": self.score_a,
-    "score_b": self.score_b,
-    "winner_id": str(winner.id),
-    "amount": self.amount,
-    "date": datetime.datetime.utcnow().strftime("%b %d %Y")
-}
-await self.db.match_history.insert_one(db_record)
+            "player_a_id": str(self.player_a.id),
+            "player_a_name": self.player_a.display_name,
+            "player_b_id": str(self.player_b.id),
+            "player_b_name": self.player_b.display_name,
+            "score_a": self.score_a,
+            "score_b": self.score_b,
+            "winner_id": str(winner.id),
+            "amount": self.amount,
+            "date": datetime.datetime.utcnow().strftime("%b %d %Y")
+        }
+        await self.db.match_history.insert_one(db_record)
 
         final_embed = discord.Embed(
             title="🏆 FINAL SCORE",
