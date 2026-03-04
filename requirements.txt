@@ -1,0 +1,7 @@
+discord.py
+pymongo
+aiohttp
+anthropic
+flask
+dnspython
+motor
