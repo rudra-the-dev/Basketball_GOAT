@@ -193,6 +193,18 @@ class Players(commands.Cog):
             return "Common"
 
     # ── bg fetchplayers (admin only) ─────────────────────────
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+          if isinstance(error, commands.CommandNotFound):
+            website_url =     config.WEBSITE_URL
+            embed = discord.Embed(
+            title="❓ Command Not Found",
+            description=f"That command doesn't exist!\n\nVisit our website for more info:\n🌐 {website_url}",
+            color=config.COLOR_ERROR
+        )
+            embed.set_footer(text="Use bg help to see all commands!")
+            await ctx.send(embed=embed)
+    
     @commands.command()
     @commands.has_permissions(administrator=True)
     async def fetchplayers(self, ctx):
@@ -329,6 +341,50 @@ class Players(commands.Cog):
 
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
+
+    # ── bg stockmarket (admin only) ──────────────────────────
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def stockmarket(self, ctx):
+        try:
+            await ctx.send("⏳ Stocking the market with players...")
+
+            await self.bot.db.market.delete_many({"seller_id": "bot"})
+
+            tier_prices = {
+                "Legend": 5000,
+                "Star": 2000,
+                "Average": 800,
+                "Common": 300
+            }
+
+            total_added = 0
+            for tier, price in tier_prices.items():
+                players = await self.bot.db.players.aggregate([
+                    {"$match": {"tier": tier}},
+                    {"$sample": {"size": 50}}
+                ]).to_list(50)
+
+                for player in players:
+                    await self.bot.db.market.insert_one({
+                        "player_id": str(player["_id"]),
+                        "seller_id": "bot",
+                        "seller_name": "🤖 Bot Store",
+                        "price": price
+                    })
+                    total_added += 1
+
+            await ctx.send(
+                f"✅ Market stocked with **{total_added}** players!\n"
+                f"💰 Prices:\n"
+                f"🔴 Legend — 5000 coins\n"
+                f"🟠 Star — 2000 coins\n"
+                f"🟡 Average — 800 coins\n"
+                f"⚪ Common — 300 coins"
+            )
+
+        except Exception as e:
+            await ctx.send(f"❌ Error: {e}")
 
     # ── bg lineup ─────────────────────────────────────────────
     @commands.command()

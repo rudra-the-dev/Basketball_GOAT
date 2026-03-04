@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DEV_ID = os.getenv("DEV_ID")
+WEBSITE_URL = os.getenv("WEBSITE_URL")
+
 #players data
 
 BALL_API_KEY = os.getenv("BALL_API_KEY")

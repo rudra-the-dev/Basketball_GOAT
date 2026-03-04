@@ -1,10 +1,50 @@
 import discord
 from discord.ext import commands
 import config
+import datetime
 
 class Basic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+
+    @commands.command()
+    async def suggest(self, ctx, *, suggestion: str):
+        try:
+            # Save suggestion to MongoDB
+            await self.bot.db.suggestions.insert_one({
+                "user_id": str(ctx.author.id),
+                "username": ctx.author.display_name,
+                "suggestion": suggestion,
+                "date": datetime.datetime.utcnow().strftime("%b %d %Y")
+            })
+
+            # Confirm to user
+            embed = discord.Embed(
+                title="💡 Suggestion Received!",
+                description=f"Thanks **{ctx.author.display_name}**! Your suggestion has been sent to the dev!",
+                color=config.COLOR_SUCCESS
+            )
+            embed.add_field(name="Your Suggestion", value=suggestion, inline=False)
+            embed.set_footer(text="The best suggestions get added to the game! 🐐")
+            await ctx.send(embed=embed)
+
+            # DM you the suggestion
+            dev = await self.bot.fetch_user(int(config.DEV_ID))
+            if dev:
+                dm_embed = discord.Embed(
+                    title="💡 New Suggestion!",
+                    color=config.COLOR_GOLD
+                )
+                dm_embed.add_field(name="From", value=f"{ctx.author.display_name} ({ctx.author.id})", inline=False)
+                dm_embed.add_field(name="Suggestion", value=suggestion, inline=False)
+                dm_embed.add_field(name="Server", value=ctx.guild.name, inline=False)
+                await dev.send(embed=dm_embed)
+
+        except Exception as e:
+            await ctx.send(f"❌ Error: {e}")
+
+    
 
     @commands.command()
     async def ping(self, ctx):

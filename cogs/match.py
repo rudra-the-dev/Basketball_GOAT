@@ -5,7 +5,6 @@ import asyncio
 import random
 from bson import ObjectId
 import anthropic
-import datetime
 
 # ── Anthropic client for commentary ──────────────────────────
 ai_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
@@ -121,6 +120,60 @@ def calculate_outcome(action, atk_ratings, dfn_ratings):
         else:
             return ("turnover", 0) if rand > 65 else ("miss", 0)
 
+    elif action == "step_back":
+        advantage = (atk_ratings["shooting"] - dfn_ratings["defense"]) + random.randint(-20, 20)
+        if advantage > 25:
+            return ("make_3", 3)
+        elif advantage > 5:
+            return ("make_3", 3) if rand > 50 else ("miss", 0)
+        elif advantage > -10:
+            return ("miss", 0)
+        else:
+            return ("miss", 0) if rand > 30 else ("steal", 0)
+
+    elif action == "mid_range":
+        advantage = (atk_ratings["shooting"] - dfn_ratings["defense"]) + random.randint(-10, 10)
+        if advantage > 20:
+            return ("make_2", 2)
+        elif advantage > 5:
+            return ("make_2", 2) if rand > 40 else ("miss", 0)
+        elif advantage > -10:
+            return ("miss", 0)
+        else:
+            return ("miss", 0) if rand > 50 else ("block", 0)
+
+    elif action == "alley_oop":
+        avg_atk = (atk_ratings["passing"] + atk_ratings["driving"]) // 2
+        advantage = (avg_atk - dfn_ratings["defense"]) + random.randint(-15, 15)
+        if advantage > 25:
+            return ("make_2", 2)
+        elif advantage > 10:
+            return ("make_2", 2) if rand > 40 else ("miss", 0)
+        elif advantage > -5:
+            return ("miss", 0) if rand > 50 else ("block", 0)
+        else:
+            return ("block", 0)
+
+    elif action == "iso":
+        advantage = (atk_ratings["clutch"] - dfn_ratings["defense"]) + random.randint(-15, 15)
+        if advantage > 25:
+            return ("make_2", 2)
+        elif advantage > 10:
+            return ("make_2", 2) if rand > 45 else ("miss", 0)
+        elif advantage > -5:
+            return ("miss", 0) if rand > 40 else ("steal", 0)
+        else:
+            return ("steal", 0)
+
+    elif action == "backdoor":
+        advantage = (atk_ratings["driving"] - dfn_ratings["defense"]) + random.randint(-10, 10)
+        if advantage > 20:
+            return ("make_2", 2)
+        elif advantage > 5:
+            return ("make_2", 2) if rand > 35 else ("miss", 0)
+        else:
+            return ("miss", 0) if rand > 50 else ("steal", 0)
+
     return ("miss", 0)
 
 
@@ -191,17 +244,27 @@ class MatchEngine:
     def get_attack_options(self, team):
         pg = team.get("PG")
         sg = team.get("SG")
+        sf = team.get("SF")
+        pf = team.get("PF")
         c = team.get("C")
         options = []
         if pg:
             options.append((f"🏃 Drive (DRV:{pg['ratings']['driving']})", "drive"))
             options.append((f"🎯 Pull Up (SHT:{pg['ratings']['shooting']})", "pull_up"))
+            options.append((f"👟 Step Back 3 (SHT:{pg['ratings']['shooting']})", "step_back"))
+            options.append((f"🎭 Iso Play (CLU:{pg['ratings']['clutch']})", "iso"))
         if sg:
             options.append((f"🌐 SG Three (SHT:{sg['ratings']['shooting']})", "three"))
+        if sf:
+            options.append((f"🎯 Mid Range (SHT:{sf['ratings']['shooting']})", "mid_range"))
         if c:
             options.append((f"💪 Post Up (DRV:{c['ratings']['driving']})", "post_up"))
         if pg and c:
             options.append((f"🔄 Pick & Roll (PAS:{pg['ratings']['passing']})", "pick_roll"))
+            options.append((f"🔮 Alley Oop (PAS:{pg['ratings']['passing']})", "alley_oop"))
+        if pf:
+            options.append((f"🚪 Backdoor Cut (DRV:{pf['ratings']['driving']})", "backdoor"))
+        random.shuffle(options)
         return options[:4]
 
     def get_defense_options(self, team, attack_action):
@@ -217,7 +280,8 @@ class MatchEngine:
                 options.append((f"⚡ Gamble Steal (CLU:{pg['ratings']['clutch']})", "steal_attempt"))
             options.append(("🚧 Drop Back", "drop_back"))
             options.append(("🤝 Intentional Foul", "foul"))
-        elif attack_action in ["pull_up", "three"]:
+            options.append(("🔒 Full Court Press", "press"))
+        elif attack_action in ["pull_up", "three", "step_back", "mid_range"]:
             if sg:
                 options.append((f"🖐️ Contest Shot (DEF:{sg['ratings']['defense']})", "contest"))
             if pg:
@@ -225,6 +289,7 @@ class MatchEngine:
             options.append(("📐 Sag Off", "sag"))
             if pf:
                 options.append((f"🔀 Switch (DEF:{pf['ratings']['defense']})", "switch"))
+            options.append(("🧱 Zone Defense", "zone"))
         elif attack_action == "post_up":
             if c:
                 options.append((f"🛡️ Hold Position (DEF:{c['ratings']['defense']})", "contest"))
@@ -239,15 +304,35 @@ class MatchEngine:
             if pf:
                 options.append((f"🛡️ Help Defense (DEF:{pf['ratings']['defense']})", "help"))
             options.append(("📐 Drop Coverage", "drop"))
+            options.append(("🔀 Trap Ball Handler", "trap"))
+        elif attack_action in ["alley_oop", "backdoor"]:
+            if c:
+                options.append((f"🛡️ Contest Rim (DEF:{c['ratings']['defense']})", "contest"))
+            if pg:
+                options.append((f"⚡ Gamble Steal (CLU:{pg['ratings']['clutch']})", "steal_attempt"))
+            options.append(("🔀 Switch", "switch"))
+            options.append(("🧱 Zone Defense", "zone"))
+        elif attack_action == "iso":
+            if pg:
+                options.append((f"💨 Lock Down (DEF:{pg['ratings']['defense']})", "contest"))
+            options.append(("🔒 Full Court Press", "press"))
+            options.append(("🔀 Trap Ball Handler", "trap"))
+            if pf:
+                options.append((f"🛡️ Help Defense (DEF:{pf['ratings']['defense']})", "help"))
+        random.shuffle(options)
         return options[:4]
 
     def get_attacker_ratings(self, team, action):
-        if action in ["drive", "pull_up", "pick_roll"]:
+        if action in ["drive", "pull_up", "pick_roll", "step_back", "iso", "alley_oop"]:
             player = team.get("PG")
-        elif action == "three":
+        elif action in ["three"]:
             player = team.get("SG") or team.get("SF")
+        elif action == "mid_range":
+            player = team.get("SF") or team.get("PF")
         elif action == "post_up":
             player = team.get("C") or team.get("PF")
+        elif action == "backdoor":
+            player = team.get("PF") or team.get("SF")
         else:
             player = team.get("PG")
         if not player:
@@ -255,13 +340,13 @@ class MatchEngine:
         return player
 
     def get_defender_ratings(self, team, action):
-        if action == "drive":
+        if action in ["drive", "alley_oop", "backdoor"]:
             player = team.get("C") or team.get("PF")
-        elif action in ["pull_up", "three"]:
+        elif action in ["pull_up", "three", "step_back", "mid_range"]:
             player = team.get("SG") or team.get("PG")
         elif action == "post_up":
             player = team.get("C") or team.get("PF")
-        elif action == "pick_roll":
+        elif action in ["pick_roll", "iso"]:
             player = team.get("PG") or team.get("C")
         else:
             player = team.get("PG")
@@ -275,7 +360,12 @@ class MatchEngine:
             "pull_up": "🎯 Pulling up for jumper",
             "three": "🌐 Kicking out for three",
             "post_up": "💪 Posting up",
-            "pick_roll": "🔄 Running pick and roll"
+            "pick_roll": "🔄 Running pick and roll",
+            "step_back": "👟 Step back three",
+            "mid_range": "🎯 Mid range fadeaway",
+            "alley_oop": "🔮 Alley oop",
+            "iso": "🎭 Iso play",
+            "backdoor": "🚪 Backdoor cut"
         }
 
         # ── ATTACK POLL ──
@@ -475,19 +565,6 @@ class MatchEngine:
             {"$inc": {"losses": 1, "skill_points": 1}}
         )
 
-        db_record = {
-            "player_a_id": str(self.player_a.id),
-            "player_a_name": self.player_a.display_name,
-            "player_b_id": str(self.player_b.id),
-            "player_b_name": self.player_b.display_name,
-            "score_a": self.score_a,
-            "score_b": self.score_b,
-            "winner_id": str(winner.id),
-            "amount": self.amount,
-            "date": datetime.datetime.utcnow().strftime("%b %d %Y")
-        }
-        await self.db.match_history.insert_one(db_record)
-
         final_embed = discord.Embed(
             title="🏆 FINAL SCORE",
             description=(
@@ -618,6 +695,7 @@ class Match(commands.Cog):
     async def play(self, ctx, amount: int = 100, ppq: str = "5/q"):
         user_id = str(ctx.author.id)
 
+        # Parse ppq
         try:
             possessions = int(ppq.replace("/q", "").replace("q", "").strip())
         except ValueError:
@@ -686,4 +764,3 @@ class Match(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Match(bot))
-      
