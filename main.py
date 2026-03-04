@@ -51,5 +51,20 @@ async def main():
     await load_cogs()
     await bot.start(config.BOT_TOKEN)
 
+from flask import Flask
+from threading import Thread
+import os
+
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "Basketball GOAT Bot is alive! 🐐🏀"
+
+def run_flask():
+    port = int(os.environ.get('PORT', 8080))
+    flask_app.run(host='0.0.0.0', port=port)
+
+
 asyncio.run(main())
   
