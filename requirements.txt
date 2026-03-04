@@ -6,3 +6,4 @@ flask
 dnspython
 motor
 dotenv
+flask
